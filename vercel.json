@@ -1,25 +1,33 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "src/main.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "installCommand": "npm install --save",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      "dest": "src/main.ts"
-    }
-  ],
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": [
-        ".wwebjs_auth/**",
-        ".wwebjs_cache/**"
-      ]
-    }
+
+    "version": 2, 
+  
+        "builds": [
+    
+          {
+    
+              "src": "src/main.ts",
+    
+              "use": "@vercel/node"
+    
+          }
+    
+      ],
+  
+    "installCommand": "npm install --save",
+  
+    "routes": [
+  
+        {
+  
+            "src": "/api/(.*)",
+  
+            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  
+            "dest": "src/main.ts"
+  
+        }
+  
+    ]
+  
   }
-}
