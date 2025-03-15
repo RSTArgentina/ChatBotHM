@@ -41,15 +41,19 @@ export class BotService implements OnModuleInit {
       this.logger.verbose(`${msg.from}: ${msg.body}`);
       const messages = await this.prisma.messages.findMany({where: {enterpriseId: this.enterpriseId}, orderBy: {numOrder: 'asc'}});
       let m;
-      if(msg.body === '1') {
-        advance = 1;
-        numOrderCount = numOrderCount+advance;
-      } else if(msg.body === '2') {
-        advance = 2;
-        numOrderCount = numOrderCount+advance;
-      } else if(msg.body === '3') {
-        advance = 3;
-        numOrderCount = numOrderCount+advance;
+      let enter: boolean = false;
+
+      if(enter) {
+        if(msg.body === '1') {
+          advance = 1;
+          numOrderCount = numOrderCount+advance;
+        } else if(msg.body === '2') {
+          advance = 2;
+          numOrderCount = numOrderCount+advance;
+        } else if(msg.body === '3') {
+          advance = 3;
+          numOrderCount = numOrderCount+advance;
+        }
       }
 
       for(let i = numOrderCount; i <= messages.length;) {
@@ -57,6 +61,7 @@ export class BotService implements OnModuleInit {
         if(messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
           m = messages[i]?.body;
           msg.reply(m);
+          enter = true;
           idPadre = messages[i]?.id;
           break;
         }
@@ -65,6 +70,7 @@ export class BotService implements OnModuleInit {
           const counti = await this.prisma.messages.count({where: {parentMessageId: messages[i]?.id}});
           const x = await this.prisma.messages.findUnique({where: {id: idPadre}});
           m = messages[i]?.body;
+          enter = true;
           msg.reply(m);
           idPadre = messages[i]?.id;
           break;
@@ -75,6 +81,7 @@ export class BotService implements OnModuleInit {
           const x = await this.prisma.messages.findUnique({where: {id: idPadre}});
           m = messages[i]?.body;
           msg.reply(m);
+          enter = false;
           idPadre = messages[i]?.id;
           //numOrderCount = 0;
           if(messages[i]?.finishLane === true) {
@@ -90,12 +97,14 @@ export class BotService implements OnModuleInit {
           m = messages[i]?.body;
           await msg.reply(m);
           numOrderCount = 0;
+          enter =false;
           break;
         }
 
         if(numOrderCount === 0) {
           m = messages[i]?.body;
           await msg.reply(m);
+          enter = false;
           numOrderCount = numOrderCount+1;
         }
         i++;
