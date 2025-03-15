@@ -14,8 +14,12 @@
       "dest": "src/main.ts"
     }
   ],
-  "files": [
-    ".wwebjs_auth",
-    ".wwebjs_cache"
-  ]
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": [
+        ".wwebjs_auth/**",
+        ".wwebjs_cache/**"
+      ]
+    }
+  }
 }
