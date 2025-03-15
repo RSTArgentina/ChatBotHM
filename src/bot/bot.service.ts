@@ -22,7 +22,7 @@ export class BotService implements OnModuleInit {
   constructor(private eventEmitter: EventEmitter2) {}
 
   async onModuleInit() {
-    const sessionPath = path.join(__dirname, '..', '..', '.wwebjs_auth', 'session');
+    const sessionPath = path.join('/tmp', '.wwebjs_auth', 'session');
     const parentPath = path.dirname(sessionPath);
 
     // Create the parent directory if it doesn't exist
@@ -30,7 +30,7 @@ export class BotService implements OnModuleInit {
       fs.mkdirSync(parentPath, { recursive: true });
     }
 
-    const cachePath = path.join(__dirname, '..', '..', '.wwebjs_cache');
+    const cachePath = path.join('/tmp', '.wwebjs_cache');
     const cacheParentPath = path.dirname(cachePath);
 
     // Create the parent directory if it doesn't exist
