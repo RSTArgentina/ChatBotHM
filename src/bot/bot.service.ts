@@ -2,12 +2,16 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import { PrismaClient } from '@prisma/client';
+const chromium = require('chrome-aws-lambda');
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 
 const rm = promisify(fs.rm);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+
+
 
 @Injectable()
 export class BotService implements OnModuleInit {
@@ -16,7 +20,9 @@ export class BotService implements OnModuleInit {
       dataPath: '/tmp/.wwebjs_auth',
     }),
     puppeteer: {
-      args: ['--no-sandbox'],
+      executablePath: chromium.executablePath, // Use the pre-installed Chromium
+        args: chromium.args, // Additional Chromium args
+        headless: true // Run in headless mode
     },
   });
   private enterpriseId: string = '';
