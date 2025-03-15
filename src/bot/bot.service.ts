@@ -12,8 +12,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 @Injectable()
 export class BotService implements OnModuleInit {
   private client: Client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+      dataPath: '/tmp/.wwebjs_auth',
+    }),
     puppeteer: {
+      userDataDir: '/tmp/.wwebjs_cache', // Cache storage
       args: ['--no-sandbox'],
     },
   });
