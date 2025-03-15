@@ -16,7 +16,6 @@ export class BotService implements OnModuleInit {
       dataPath: '/tmp/.wwebjs_auth',
     }),
     puppeteer: {
-      userDataDir: '/tmp/.wwebjs_cache', // Cache storage
       args: ['--no-sandbox'],
     },
   });
