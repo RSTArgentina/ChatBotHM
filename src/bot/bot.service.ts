@@ -13,6 +13,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export class BotService implements OnModuleInit {
   private client: Client = new Client({
     authStrategy: new LocalAuth(),
+    puppeteer: {
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    } 
   });
   private enterpriseId: string = '';
   private prisma = new PrismaClient();
