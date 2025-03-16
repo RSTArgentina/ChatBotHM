@@ -3,7 +3,7 @@ services:
   chatbot-hm:
     build:
       context: ./
-      dockerfile: dockerfile.prod
+      dockerfile: Dockerfile
       args:
         - DATABASE_URL=${DATABASE_URL}
     image: chatbot-hm
