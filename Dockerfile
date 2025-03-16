@@ -28,12 +28,6 @@ COPY . .
 # Copy the Prisma schema file to the correct location
 COPY prisma/schema.prisma prisma/schema.prisma
 
-# Copy the print-env script
-COPY print-env.sh ./
-
-# Make the script executable
-RUN chmod +x print-env.sh
-
 # Build the application
 RUN npm run build
 
@@ -44,4 +38,4 @@ EXPOSE 3000
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Start the application
-CMD ["sh", "-c", "./print-env.sh && node dist/main"]
+CMD ["node", "dist/main"]
