@@ -15,7 +15,7 @@ export class BotService implements OnModuleInit {
     authStrategy: new LocalAuth(),
     puppeteer: {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome', // Add this line
+      executablePath: process.env.CHROME_BIN || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome', // Add this line
       protocolTimeout: 60000, // Increase the protocol timeout to 60 seconds
     },
   });
