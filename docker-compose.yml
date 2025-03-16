@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - DATABASE_URL=postgresql://chatbotHM_owner:npg_TGUIZp4P2jvl@ep-shy-paper-aco1cs3q-pooler.sa-east-1.aws.neon.tech/chatbotHM?sslmode=require
+        - DATABASE_URL=${DATABASE_URL}
     image: chatbothm
     ports:
       - "3000:3000"
