@@ -15,6 +15,7 @@ export class BotService implements OnModuleInit {
     authStrategy: new LocalAuth(),
     puppeteer: {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      protocolTimeout: 60000,
     } 
   });
   private enterpriseId: string = '';
