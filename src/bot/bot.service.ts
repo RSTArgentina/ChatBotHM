@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 
+
 const rm = promisify(fs.rm);
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -14,6 +15,7 @@ export class BotService implements OnModuleInit {
   private client: Client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       protocolTimeout: 600000, // Increase the protocol timeout to 60 seconds
     },
@@ -40,12 +42,13 @@ export class BotService implements OnModuleInit {
     let numOrderCount: number = 0;
     let idPadre: string = ' ';
     let advance: number = 0;
+    let enter: boolean = false;
 
     this.client.on('message', async (msg) => {
       this.logger.verbose(`${msg.from}: ${msg.body}`);
       const messages = await this.prisma.messages.findMany({where: {enterpriseId: this.enterpriseId}, orderBy: {numOrder: 'asc'}});
       let m;
-      let enter: boolean = false;
+      
 
       if(enter) {
         if(msg.body === '1') {
@@ -59,7 +62,6 @@ export class BotService implements OnModuleInit {
           numOrderCount = numOrderCount+advance;
         }
       }
-
       for(let i = numOrderCount; i <= messages.length;) {
 
         if(messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
