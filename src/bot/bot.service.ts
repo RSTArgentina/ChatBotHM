@@ -18,6 +18,7 @@ export class BotService implements OnModuleInit {
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       protocolTimeout: 600000, // Increase the protocol timeout to 60 seconds
+      executablePath: '/usr/bin/google-chrome', // Add this line
     },
   });
   private enterpriseId: string = '';
