@@ -15,8 +15,9 @@ export class BotService implements OnModuleInit {
     authStrategy: new LocalAuth(),
     puppeteer: {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      protocolTimeout: 60000,
-    } 
+      executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome', // Add this line
+      protocolTimeout: 60000, // Increase the protocol timeout to 60 seconds
+    },
   });
   private enterpriseId: string = '';
   private prisma = new PrismaClient();
