@@ -18,13 +18,12 @@ export class BotService implements OnModuleInit {
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       protocolTimeout: 600000, // Increase the protocol timeout to 60 seconds
-      executablePath: '/usr/bin/google-chrome', // Add this line
     },
   });
   private enterpriseId: string = '';
   private prisma = new PrismaClient();
   private readonly logger = new Logger(BotService.name);
-  private followUpTimer: NodeJS.Timeout | null = null;
+  private userStates: Map<string, { numOrderCount: number; idPadre: string; advance: number; enter: boolean }> = new Map();
 
   constructor(private eventEmitter: EventEmitter2) {}
 
@@ -40,79 +39,116 @@ export class BotService implements OnModuleInit {
       this.logger.log("You're connected successfully!");
     });
 
-    let numOrderCount: number = 0;
-    let idPadre: string = ' ';
-    let advance: number = 0;
-    let enter: boolean = false;
-
     this.client.on('message', async (msg) => {
       this.logger.verbose(`${msg.from}: ${msg.body}`);
-      const messages = await this.prisma.messages.findMany({where: {enterpriseId: this.enterpriseId}, orderBy: {numOrder: 'asc'}});
-      let m;
-      
 
-      if(enter) {
-        if(msg.body === '1') {
-          advance = 1;
-          numOrderCount = numOrderCount+advance;
-        } else if(msg.body === '2') {
-          advance = 2;
-          numOrderCount = numOrderCount+advance;
-        } else if(msg.body === '3') {
-          advance = 3;
-          numOrderCount = numOrderCount+advance;
+      // Get or initialize the user's state
+      if (!this.userStates.has(msg.from)) {
+        this.userStates.set(msg.from, {
+          numOrderCount: 0,
+          idPadre: '',
+          advance: 0,
+          enter: false,
+        });
+      }
+      let userState = this.userStates.get(msg.from);
+      if (!userState) {
+        userState = {
+          numOrderCount: 0,
+          idPadre: '',
+          advance: 0,
+          enter: false,
+        };
+        this.userStates.set(msg.from, userState);
+      }
+
+      const messages = await this.prisma.messages.findMany({
+        where: { enterpriseId: this.enterpriseId },
+        orderBy: { numOrder: 'asc' },
+      });
+
+      let m;
+
+      if (userState.enter) {
+        if (msg.body === '1') {
+          userState.advance = 1;
+          userState.numOrderCount += userState.advance;
+        } else if (msg.body === '2') {
+          userState.advance = 2;
+          userState.numOrderCount += userState.advance;
+        } else if (msg.body === '3') {
+          userState.advance = 3;
+          userState.numOrderCount += userState.advance;
         }
       }
-      for(let i = numOrderCount; i <= messages.length;) {
 
-        if(messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
+      for (let i = userState.numOrderCount; i <= messages.length;) {
+        if (messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
           m = messages[i]?.body;
           msg.reply(m);
-          enter = true;
-          idPadre = messages[i]?.id;
+          userState.enter = true;
+          userState.idPadre = messages[i]?.id;
           break;
         }
 
-        if(messages[i]?.parentMessageId === idPadre && messages[i]?.option === 'MENU' && messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()) {
-          const counti = await this.prisma.messages.count({where: {parentMessageId: messages[i]?.id}});
-          const x = await this.prisma.messages.findUnique({where: {id: idPadre}});
+        if (
+          messages[i]?.parentMessageId === userState.idPadre &&
+          messages[i]?.option === 'MENU' &&
+          messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
+        ) {
+          const counti = await this.prisma.messages.count({
+            where: { parentMessageId: messages[i]?.id },
+          });
+          const x = await this.prisma.messages.findUnique({
+            where: { id: userState?.idPadre },
+          });
           m = messages[i]?.body;
-          enter = true;
+          userState.enter = true;
           msg.reply(m);
-          idPadre = messages[i]?.id;
+          userState.idPadre = messages[i]?.id;
           break;
         }
 
-        if(messages[i]?.parentMessageId === idPadre && messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()) {
-          const counti = await this.prisma.messages.count({where: {parentMessageId: messages[i]?.id}});
-          const x = await this.prisma.messages.findUnique({where: {id: idPadre}});
+        if (
+          messages[i]?.parentMessageId === userState.idPadre &&
+          messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
+        ) {
+          const counti = await this.prisma.messages.count({
+            where: { parentMessageId: messages[i]?.id },
+          });
+          const x = await this.prisma.messages.findUnique({
+            where: { id: userState.idPadre },
+          });
           m = messages[i]?.body;
           msg.reply(m);
-          enter = false;
-          idPadre = messages[i]?.id;
-          //numOrderCount = 0;
-          if(messages[i]?.finishLane === true) {
-            numOrderCount = 0;
+          if (userState) {
+            userState.enter = false;
+          }
+          userState.idPadre = messages[i]?.id;
+
+          if (messages[i]?.finishLane === true) {
+            if (userState) {
+              userState.numOrderCount = 0;
+            }
             break;
           } else {
             break;
           }
-
         }
 
-        if(i == messages.length-1) {
+        if (i == messages.length - 1) {
           m = messages[i]?.body;
           await msg.reply(m);
-          numOrderCount = 0;
-          enter =false;
+          userState.numOrderCount = 0;
+          userState.enter = false;
           break;
         }
 
-        if(numOrderCount === 0) {
+        if (userState.numOrderCount === 0) {
           m = messages[i]?.body;
           await msg.reply(m);
-          enter = false;
-          numOrderCount = numOrderCount+1;
+          userState.enter = false;
+          userState.numOrderCount += 1;
         }
         i++;
       }
