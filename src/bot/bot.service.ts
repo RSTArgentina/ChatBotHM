@@ -23,7 +23,7 @@ export class BotService implements OnModuleInit {
   private enterpriseId: string = '';
   private prisma = new PrismaClient();
   private readonly logger = new Logger(BotService.name);
-  private userStates: Map<string, { numOrderCount: number; idPadre: string; advance: number; enter: boolean }> = new Map();
+  private userStates: Map<string, { numOrderCount: number; idPadre: string; advance: number; enter: boolean; processing?: boolean }> = new Map();
 
   constructor(private eventEmitter: EventEmitter2) {}
 
@@ -51,106 +51,121 @@ export class BotService implements OnModuleInit {
           enter: false,
         });
       }
-      let userState = this.userStates.get(msg.from);
+
+      const userState = this.userStates.get(msg.from);
+
+      // Ensure userState is defined
       if (!userState) {
-        userState = {
-          numOrderCount: 0,
-          idPadre: '',
-          advance: 0,
-          enter: false,
-        };
-        this.userStates.set(msg.from, userState);
+        this.logger.error(`User state for ${msg.from} is undefined.`);
+        return;
       }
 
-      const messages = await this.prisma.messages.findMany({
-        where: { enterpriseId: this.enterpriseId },
-        orderBy: { numOrder: 'asc' },
-      });
-
-      let m;
-
-      if (userState.enter) {
-        if (msg.body === '1') {
-          userState.advance = 1;
-          userState.numOrderCount += userState.advance;
-        } else if (msg.body === '2') {
-          userState.advance = 2;
-          userState.numOrderCount += userState.advance;
-        } else if (msg.body === '3') {
-          userState.advance = 3;
-          userState.numOrderCount += userState.advance;
-        }
+      // Prevent overlapping message handling for the same user
+      if (userState.processing) {
+        this.logger.warn(`User ${msg.from} is already being processed. Ignoring this message.`);
+        return;
       }
 
-      for (let i = userState.numOrderCount; i <= messages.length;) {
-        if (messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
-          m = messages[i]?.body;
-          msg.reply(m);
-          userState.enter = true;
-          userState.idPadre = messages[i]?.id;
-          break;
+      try {
+        // Mark the user as being processed
+        userState.processing = true;
+
+        const messages = await this.prisma.messages.findMany({
+          where: { enterpriseId: this.enterpriseId },
+          orderBy: { numOrder: 'asc' },
+        });
+
+        let m;
+
+        if (userState.enter) {
+          if (msg.body === '1') {
+            userState.advance = 1;
+            userState.numOrderCount += userState.advance;
+          } else if (msg.body === '2') {
+            userState.advance = 2;
+            userState.numOrderCount += userState.advance;
+          } else if (msg.body === '3') {
+            userState.advance = 3;
+            userState.numOrderCount += userState.advance;
+          }
         }
 
-        if (
-          messages[i]?.parentMessageId === userState.idPadre &&
-          messages[i]?.option === 'MENU' &&
-          messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
-        ) {
-          const counti = await this.prisma.messages.count({
-            where: { parentMessageId: messages[i]?.id },
-          });
-          const x = await this.prisma.messages.findUnique({
-            where: { id: userState?.idPadre },
-          });
-          m = messages[i]?.body;
-          userState.enter = true;
-          msg.reply(m);
-          userState.idPadre = messages[i]?.id;
-          break;
-        }
+        for (let i = userState.numOrderCount; i <= messages.length;) {
+          if (messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
+            m = messages[i]?.body;
+            await sleep(2000); // Delay to avoid being flagged by WhatsApp
+            await msg.reply(m);
+            userState.enter = true;
+            userState.idPadre = messages[i]?.id;
+            break;
+          }
 
-        if (
-          messages[i]?.parentMessageId === userState.idPadre &&
-          messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
-        ) {
-          const counti = await this.prisma.messages.count({
-            where: { parentMessageId: messages[i]?.id },
-          });
-          const x = await this.prisma.messages.findUnique({
-            where: { id: userState.idPadre },
-          });
-          m = messages[i]?.body;
-          msg.reply(m);
-          if (userState) {
+          if (
+            messages[i]?.parentMessageId === userState.idPadre &&
+            messages[i]?.option === 'MENU' &&
+            messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
+          ) {
+            const counti = await this.prisma.messages.count({
+              where: { parentMessageId: messages[i]?.id },
+            });
+            const x = await this.prisma.messages.findUnique({
+              where: { id: userState?.idPadre },
+            });
+            m = messages[i]?.body;
+            userState.enter = true;
+            await sleep(2000); // Delay to avoid being flagged by WhatsApp
+            await msg.reply(m);
+            userState.idPadre = messages[i]?.id;
+            break;
+          }
+
+          if (
+            messages[i]?.parentMessageId === userState.idPadre &&
+            messages[i]?.trigger?.toLowerCase() === msg.body.toLowerCase()
+          ) {
+            const counti = await this.prisma.messages.count({
+              where: { parentMessageId: messages[i]?.id },
+            });
+            const x = await this.prisma.messages.findUnique({
+              where: { id: userState.idPadre },
+            });
+            m = messages[i]?.body;
+            await sleep(2000); // Delay to avoid being flagged by WhatsApp
+            await msg.reply(m);
             userState.enter = false;
-          }
-          userState.idPadre = messages[i]?.id;
+            userState.idPadre = messages[i]?.id;
 
-          if (messages[i]?.finishLane === true) {
-            if (userState) {
+            if (messages[i]?.finishLane === true) {
               userState.numOrderCount = 0;
+              break;
+            } else {
+              break;
             }
-            break;
-          } else {
+          }
+
+          if (i == messages.length - 1) {
+            m = messages[i]?.body;
+            await sleep(2000); // Delay to avoid being flagged by WhatsApp
+            await msg.reply(m);
+            userState.numOrderCount = 0;
+            userState.enter = false;
             break;
           }
-        }
 
-        if (i == messages.length - 1) {
-          m = messages[i]?.body;
-          await msg.reply(m);
-          userState.numOrderCount = 0;
-          userState.enter = false;
-          break;
+          if (userState.numOrderCount === 0) {
+            m = messages[i]?.body;
+            await sleep(2000); // Delay to avoid being flagged by WhatsApp
+            await msg.reply(m);
+            userState.enter = false;
+            userState.numOrderCount += 1;
+          }
+          i++;
         }
-
-        if (userState.numOrderCount === 0) {
-          m = messages[i]?.body;
-          await msg.reply(m);
-          userState.enter = false;
-          userState.numOrderCount += 1;
-        }
-        i++;
+      } catch (error) {
+        this.logger.error(`Error processing message for user ${msg.from}: ${error.message}`);
+      } finally {
+        // Mark the user as no longer being processed
+        userState.processing = false;
       }
     });
 
