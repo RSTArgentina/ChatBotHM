@@ -1,10 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { HttpException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Client, LocalAuth } from 'whatsapp-web.js';
-import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { PrismaClient } from '@prisma/client';
 
 
 const rm = promisify(fs.rm);
@@ -34,7 +34,6 @@ export class BotService implements OnModuleInit {
       );
       this.eventEmitter.emit('qrcode.created', qr);
     });
-
     this.client.on('ready', async () => {
       this.logger.log("You're connected successfully!");
     });
@@ -53,6 +52,7 @@ export class BotService implements OnModuleInit {
       }
 
       const userState = this.userStates.get(msg.from);
+      
 
       // Ensure userState is defined
       if (!userState) {
@@ -78,19 +78,35 @@ export class BotService implements OnModuleInit {
         let m;
 
         if (userState.enter) {
-          if (msg.body === '1') {
-            userState.advance = 1;
+          const childCount = await this.prisma.messages.count({
+            where: { parentMessageId: userState.idPadre },
+          });
+
+          const selectedOption = parseInt(msg.body, 10);
+
+          if (!isNaN(selectedOption) && selectedOption > 0 && selectedOption <= childCount) {
+            userState.advance = selectedOption;
             userState.numOrderCount += userState.advance;
-          } else if (msg.body === '2') {
-            userState.advance = 2;
-            userState.numOrderCount += userState.advance;
-          } else if (msg.body === '3') {
-            userState.advance = 3;
-            userState.numOrderCount += userState.advance;
+          } else {
+            await msg.reply(`Opcion Invalida. Por favor seleccione un numero entre 1 y ${childCount}.`);
+            const msgReturn = await this.prisma.messages.findUnique({
+              where: { id: userState.idPadre },
+            });
+
+            if (msgReturn) {
+              await msg.reply(msgReturn.body);
+            } else {
+              this.logger.warn(`No message found for id: ${userState.idPadre}`);
+            }
+
+            return;
           }
         }
+        
+        this.logger.log(`numOrderCount: ${userState.numOrderCount}`);
 
         for (let i = userState.numOrderCount; i <= messages.length;) {
+
           if (messages[i]?.parentMessageId === null && messages[i]?.option === 'MENU') {
             m = messages[i]?.body;
             await sleep(2000); // Delay to avoid being flagged by WhatsApp
